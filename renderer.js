@@ -20,6 +20,9 @@ class ImageEditor {
         this.dragOffset = { x: 0, y: 0 };
         this.preventDimensionUpdate = false;
         this.isInitializing = false;
+        this.isEditingText = false;
+        this.editingAnnotation = null;
+        this.inlineEditor = document.getElementById('inlineTextEditor');
         
         this.initializeEventListeners();
     }
@@ -61,6 +64,11 @@ class ImageEditor {
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
         this.canvas.addEventListener('click', (e) => this.onCanvasClick(e));
+        this.canvas.addEventListener('dblclick', (e) => this.onCanvasDoubleClick(e));
+        
+        // Inline text editor events
+        this.inlineEditor.addEventListener('blur', () => this.finishTextEditing());
+        this.inlineEditor.addEventListener('keydown', (e) => this.onTextEditorKeydown(e));
     }
     
     async loadFromClipboard() {
@@ -454,35 +462,133 @@ class ImageEditor {
     }
     
     onCanvasClick(e) {
+        // Don't process click if we're currently editing text
+        if (this.isEditingText) return;
+        
         if (!this.currentImage || this.currentMode !== 'text') return;
         
         const coords = this.getCanvasCoordinates(e);
-        this.addText(coords.x, coords.y);
+        this.startTextEditing(coords.x, coords.y);
     }
     
-    addText(x, y) {
-        const text = document.getElementById('textInput').value;
-        if (!text.trim()) {
-            alert('テキストを入力してください');
-            return;
+    onCanvasDoubleClick(e) {
+        if (!this.currentImage || this.currentMode !== 'select') return;
+        
+        const coords = this.getCanvasCoordinates(e);
+        const annotation = this.getAnnotationAt(coords.x, coords.y);
+        
+        if (annotation && annotation.type === 'text') {
+            this.startTextEditing(annotation.x, annotation.y, annotation);
+        }
+    }
+    
+    startTextEditing(x, y, existingAnnotation = null) {
+        this.isEditingText = true;
+        this.editingAnnotation = existingAnnotation;
+        
+        // Position the inline editor
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const containerRect = this.canvas.parentElement.getBoundingClientRect();
+        
+        // Convert image coordinates to screen coordinates
+        const screenX = x * this.zoomLevel;
+        const screenY = y * this.zoomLevel;
+        
+        // Position relative to the canvas container
+        const editorX = screenX + canvasRect.left - containerRect.left;
+        const editorY = screenY + canvasRect.top - containerRect.top;
+        
+        this.inlineEditor.style.left = editorX + 'px';
+        this.inlineEditor.style.top = editorY + 'px';
+        
+        // Set font properties
+        const fontSize = existingAnnotation ? 
+            existingAnnotation.fontSize : 
+            parseInt(document.getElementById('fontSizeInput').value);
+        const color = existingAnnotation ? 
+            existingAnnotation.color : 
+            document.getElementById('textColorInput').value;
+            
+        this.inlineEditor.style.fontSize = (fontSize * this.zoomLevel) + 'px';
+        this.inlineEditor.style.color = color;
+        
+        // Set initial text
+        this.inlineEditor.value = existingAnnotation ? existingAnnotation.text : '';
+        
+        // Show and focus the editor
+        this.inlineEditor.style.display = 'block';
+        this.inlineEditor.focus();
+        this.inlineEditor.select();
+    }
+    
+    finishTextEditing() {
+        if (!this.isEditingText) return;
+        
+        const text = this.inlineEditor.value.trim();
+        
+        if (text) {
+            if (this.editingAnnotation) {
+                // Update existing annotation
+                this.editingAnnotation.text = text;
+            } else {
+                // Create new annotation
+                const rect = this.canvas.getBoundingClientRect();
+                const containerRect = this.canvas.parentElement.getBoundingClientRect();
+                
+                const editorRect = this.inlineEditor.getBoundingClientRect();
+                const canvasX = editorRect.left - rect.left;
+                const canvasY = editorRect.top - rect.top;
+                
+                // Convert back to image coordinates
+                const imageX = canvasX / this.zoomLevel;
+                const imageY = canvasY / this.zoomLevel;
+                
+                const fontSize = parseInt(document.getElementById('fontSizeInput').value);
+                const color = document.getElementById('textColorInput').value;
+                
+                const annotation = {
+                    type: 'text',
+                    x: imageX,
+                    y: imageY + fontSize, // Adjust for baseline
+                    text: text,
+                    fontSize: fontSize,
+                    originalFontSize: fontSize,
+                    color: color,
+                    scale: 1.0
+                };
+                
+                this.annotations.push(annotation);
+            }
+        } else if (this.editingAnnotation) {
+            // Remove empty text annotation
+            const index = this.annotations.indexOf(this.editingAnnotation);
+            if (index > -1) {
+                this.annotations.splice(index, 1);
+            }
         }
         
-        const fontSize = parseInt(document.getElementById('fontSizeInput').value);
-        const color = document.getElementById('textColorInput').value;
+        // Hide editor and reset state
+        this.inlineEditor.style.display = 'none';
+        this.isEditingText = false;
+        this.editingAnnotation = null;
         
-        const annotation = {
-            type: 'text',
-            x: x,
-            y: y,
-            text: text,
-            fontSize: fontSize,
-            originalFontSize: fontSize,
-            color: color,
-            scale: 1.0
-        };
-        
-        this.annotations.push(annotation);
         this.drawImage();
+    }
+    
+    onTextEditorKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.finishTextEditing();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            // Cancel editing without saving
+            this.inlineEditor.style.display = 'none';
+            this.isEditingText = false;
+            this.editingAnnotation = null;
+        }
+        
+        // Stop event propagation to prevent canvas events
+        e.stopPropagation();
     }
     
     finishDrawing() {
