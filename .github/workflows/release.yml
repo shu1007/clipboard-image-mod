@@ -30,7 +30,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           
       - name: Setup Visual Studio Build Tools (Windows)
         if: matrix.os == 'windows-latest'
@@ -43,6 +43,7 @@ jobs:
         env:
           npm_config_msvs_version: 2022
           npm_config_python: python
+          npm_config_target_arch: x64
         
       - name: Build for macOS
         if: matrix.os == 'macos-latest'
