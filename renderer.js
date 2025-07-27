@@ -440,7 +440,9 @@ class ImageEditor {
             y: y,
             text: text,
             fontSize: fontSize,
-            color: color
+            originalFontSize: fontSize,
+            color: color,
+            scale: 1.0
         };
         
         this.annotations.push(annotation);
@@ -764,8 +766,49 @@ class ImageEditor {
         const ann = this.selectedAnnotation;
         
         if (ann.type === 'text') {
-            // For text, we don't actually resize, just provide visual feedback
-            // Text size is controlled by the fontSize property
+            // Initialize scale properties if they don't exist (for backward compatibility)
+            if (ann.scale === undefined) {
+                ann.originalFontSize = ann.fontSize;
+                ann.scale = 1.0;
+            }
+            
+            // Calculate scale based on handle movement
+            const bounds = this.getTextBounds(ann);
+            const originalWidth = bounds.width / ann.scale;
+            const originalHeight = bounds.height / ann.scale;
+            
+            let newScale = ann.scale;
+            
+            switch (this.resizeHandle) {
+                case 'se': // Bottom-right corner - most intuitive
+                    const newWidth = x - ann.x;
+                    const newHeight = (ann.y) - y; // y grows downward, but text y is baseline
+                    newScale = Math.max(0.1, Math.min(newWidth / originalWidth, Math.abs(newHeight) / originalHeight));
+                    break;
+                case 'nw': // Top-left corner
+                    const deltaX = ann.x - x;
+                    const deltaY = y - (ann.y - bounds.height);
+                    newScale = Math.max(0.1, Math.min(deltaX / originalWidth, deltaY / originalHeight));
+                    // Move the text position when resizing from top-left
+                    ann.x = x;
+                    ann.y = y + (bounds.height * newScale);
+                    break;
+                case 'ne': // Top-right corner
+                    const widthFromNE = x - ann.x;
+                    const heightFromNE = (ann.y - bounds.height) - y;
+                    newScale = Math.max(0.1, Math.min(widthFromNE / originalWidth, heightFromNE / originalHeight));
+                    ann.y = y + (bounds.height * newScale);
+                    break;
+                case 'sw': // Bottom-left corner
+                    const widthFromSW = ann.x - x;
+                    const heightFromSW = (ann.y) - y;
+                    newScale = Math.max(0.1, Math.min(widthFromSW / originalWidth, Math.abs(heightFromSW) / originalHeight));
+                    ann.x = x;
+                    break;
+            }
+            
+            ann.scale = Math.max(0.1, Math.min(5.0, newScale)); // Limit scale between 0.1x and 5x
+            ann.fontSize = Math.round(ann.originalFontSize * ann.scale);
             return;
         }
         
