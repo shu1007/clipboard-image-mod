@@ -19,6 +19,7 @@ class ImageEditor {
         this.resizeHandle = null;
         this.dragOffset = { x: 0, y: 0 };
         this.preventDimensionUpdate = false;
+        this.isInitializing = false;
         
         this.initializeEventListeners();
     }
@@ -79,11 +80,17 @@ class ImageEditor {
     loadImage(dataURL) {
         const img = new Image();
         img.onload = () => {
+            this.isInitializing = true; // Prevent any resize during initialization
             this.originalImageData = dataURL;
             this.currentImage = img;
             this.drawImage();
             this.updateDimensionInputs();
             document.getElementById('saveBtn').disabled = false;
+            
+            // Small delay to ensure all events are processed before allowing resize
+            setTimeout(() => {
+                this.isInitializing = false;
+            }, 100);
         };
         img.src = dataURL;
     }
@@ -116,10 +123,20 @@ class ImageEditor {
     }
     
     onDimensionInput() {
-        // Check if auto-resize is enabled
+        // Check if auto-resize is enabled and not during programmatic update or initialization
         const autoResize = document.getElementById('autoResizeCheck').checked;
-        if (autoResize && !this.preventDimensionUpdate) {
-            this.resizeImage();
+        
+        // Additional safety checks: only resize if we're not updating dimensions programmatically,
+        // not initializing, and if the values have actually changed from the current image size
+        if (autoResize && !this.preventDimensionUpdate && !this.isInitializing && this.currentImage) {
+            const currentWidth = parseInt(document.getElementById('widthInput').value);
+            const currentHeight = parseInt(document.getElementById('heightInput').value);
+            
+            // Only resize if values are different from current image dimensions and values are valid
+            if (currentWidth > 0 && currentHeight > 0 && 
+                (currentWidth !== this.currentImage.width || currentHeight !== this.currentImage.height)) {
+                this.resizeImage();
+            }
         }
     }
     
@@ -131,10 +148,7 @@ class ImageEditor {
         if (autoResize) {
             resizeBtn.textContent = '自動リサイズ中';
             resizeBtn.disabled = true;
-            // Apply current dimensions immediately when enabling auto-resize
-            if (!this.preventDimensionUpdate) {
-                this.resizeImage();
-            }
+            // Don't auto-apply when enabling checkbox - let user control when to resize
         } else {
             resizeBtn.textContent = '手動で適用';
             resizeBtn.disabled = false;
