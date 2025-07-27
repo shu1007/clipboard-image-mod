@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipboard Image Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Clipboard Image Editor</h1>
+            <div class="toolbar">
+                <button id="loadBtn">クリップボードから読み込み</button>
+                <button id="saveBtn" disabled>クリップボードに保存</button>
+            </div>
+        </header>
+        
+        <main>
+            <div class="editor-panel">
+                <div class="canvas-container">
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <h3>リサイズ</h3>
+                        <div class="input-group">
+                            <label>幅: <input type="number" id="widthInput" min="1"></label>
+                            <label>高さ: <input type="number" id="heightInput" min="1"></label>
+                            <button id="resizeBtn">適用</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>回転</h3>
+                        <div class="button-group">
+                            <button id="rotateLeftBtn">左90°</button>
+                            <button id="rotateRightBtn">右90°</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>トリミング</h3>
+                        <button id="cropBtn">選択範囲をトリミング</button>
+                        <button id="resetCropBtn">選択解除</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>その他</h3>
+                        <button id="resetBtn">リセット</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="renderer.js"></script>
+</body>
+</html>
