@@ -583,18 +583,34 @@ class ImageEditor {
         this.ctx.restore();
     }
     
+    getTextBounds(annotation) {
+        // Create temporary context to measure text accurately
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.font = `${annotation.fontSize}px Arial`;
+        
+        const metrics = tempCtx.measureText(annotation.text);
+        const textWidth = metrics.width;
+        const textHeight = annotation.fontSize;
+        
+        return {
+            x: annotation.x,
+            y: annotation.y - textHeight,
+            width: textWidth,
+            height: textHeight
+        };
+    }
+    
     getAnnotationAt(x, y) {
         // Check annotations in reverse order (top to bottom)
         for (let i = this.annotations.length - 1; i >= 0; i--) {
             const annotation = this.annotations[i];
             
             if (annotation.type === 'text') {
-                // Rough text bounds check
-                const textWidth = this.ctx.measureText(annotation.text).width;
-                const textHeight = annotation.fontSize;
+                const bounds = this.getTextBounds(annotation);
                 
-                if (x >= annotation.x && x <= annotation.x + textWidth &&
-                    y >= annotation.y - textHeight && y <= annotation.y) {
+                if (x >= bounds.x && x <= bounds.x + bounds.width &&
+                    y >= bounds.y && y <= bounds.y + bounds.height) {
                     return annotation;
                 }
             } else {
@@ -687,14 +703,32 @@ class ImageEditor {
     }
     
     getResizeHandle(x, y) {
-        if (!this.selectedAnnotation || this.selectedAnnotation.type === 'text') return null;
+        if (!this.selectedAnnotation) return null;
         
-        const handles = this.getResizeHandles();
         const handleSize = 8;
         
-        for (const [name, handle] of Object.entries(handles)) {
-            if (Math.abs(x - handle.x) <= handleSize && Math.abs(y - handle.y) <= handleSize) {
-                return name;
+        if (this.selectedAnnotation.type === 'text') {
+            // Check text corner handles (for visual feedback, but no actual resizing)
+            const bounds = this.getTextBounds(this.selectedAnnotation);
+            const corners = [
+                { name: 'nw', x: bounds.x, y: bounds.y },
+                { name: 'ne', x: bounds.x + bounds.width, y: bounds.y },
+                { name: 'sw', x: bounds.x, y: bounds.y + bounds.height },
+                { name: 'se', x: bounds.x + bounds.width, y: bounds.y + bounds.height }
+            ];
+            
+            for (const corner of corners) {
+                if (Math.abs(x - corner.x) <= handleSize && Math.abs(y - corner.y) <= handleSize) {
+                    return corner.name;
+                }
+            }
+        } else {
+            const handles = this.getResizeHandles();
+            
+            for (const [name, handle] of Object.entries(handles)) {
+                if (Math.abs(x - handle.x) <= handleSize && Math.abs(y - handle.y) <= handleSize) {
+                    return name;
+                }
             }
         }
         
@@ -728,6 +762,12 @@ class ImageEditor {
         if (!this.selectedAnnotation || !this.resizeHandle) return;
         
         const ann = this.selectedAnnotation;
+        
+        if (ann.type === 'text') {
+            // For text, we don't actually resize, just provide visual feedback
+            // Text size is controlled by the fontSize property
+            return;
+        }
         
         switch (this.resizeHandle) {
             case 'nw':
@@ -785,21 +825,51 @@ class ImageEditor {
     }
     
     drawSelectionHandles() {
-        if (!this.selectedAnnotation || this.selectedAnnotation.type === 'text') return;
+        if (!this.selectedAnnotation) return;
         
         this.ctx.save();
         this.ctx.scale(this.zoomLevel, this.zoomLevel);
         
-        const handles = this.getResizeHandles();
-        const handleSize = 6;
-        
-        this.ctx.fillStyle = '#007bff';
-        this.ctx.strokeStyle = '#ffffff';
-        this.ctx.lineWidth = 1;
-        
-        for (const handle of Object.values(handles)) {
-            this.ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-            this.ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+        if (this.selectedAnnotation.type === 'text') {
+            // Draw text bounding box
+            const bounds = this.getTextBounds(this.selectedAnnotation);
+            
+            this.ctx.strokeStyle = '#007bff';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([3, 3]);
+            this.ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            this.ctx.setLineDash([]);
+            
+            // Draw corner handles for text
+            const handleSize = 6;
+            this.ctx.fillStyle = '#007bff';
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 1;
+            
+            const corners = [
+                { x: bounds.x, y: bounds.y },
+                { x: bounds.x + bounds.width, y: bounds.y },
+                { x: bounds.x, y: bounds.y + bounds.height },
+                { x: bounds.x + bounds.width, y: bounds.y + bounds.height }
+            ];
+            
+            corners.forEach(corner => {
+                this.ctx.fillRect(corner.x - handleSize/2, corner.y - handleSize/2, handleSize, handleSize);
+                this.ctx.strokeRect(corner.x - handleSize/2, corner.y - handleSize/2, handleSize, handleSize);
+            });
+        } else {
+            // Draw resize handles for shapes
+            const handles = this.getResizeHandles();
+            const handleSize = 6;
+            
+            this.ctx.fillStyle = '#007bff';
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 1;
+            
+            for (const handle of Object.values(handles)) {
+                this.ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+                this.ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+            }
         }
         
         this.ctx.restore();
