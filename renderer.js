@@ -13,6 +13,11 @@ class ImageEditor {
         this.zoomLevel = 1.0;
         this.displayWidth = 0;
         this.displayHeight = 0;
+        this.selectedAnnotation = null;
+        this.isDragging = false;
+        this.isResizing = false;
+        this.resizeHandle = null;
+        this.dragOffset = { x: 0, y: 0 };
         
         this.initializeEventListeners();
     }
@@ -39,6 +44,11 @@ class ImageEditor {
         document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
         document.getElementById('fitToScreenBtn').addEventListener('click', () => this.fitToScreen());
         document.getElementById('actualSizeBtn').addEventListener('click', () => this.actualSize());
+        
+        // Annotation control buttons
+        document.getElementById('deleteSelectedBtn').addEventListener('click', () => this.deleteSelected());
+        document.getElementById('bringToFrontBtn').addEventListener('click', () => this.bringToFront());
+        document.getElementById('sendToBackBtn').addEventListener('click', () => this.sendToBack());
         
         this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
@@ -87,6 +97,7 @@ class ImageEditor {
         this.drawAnnotations();
         this.drawSelection();
         this.drawCurrentShape();
+        this.drawSelectionHandles();
     }
     
     updateDimensionInputs() {
@@ -326,11 +337,34 @@ class ImageEditor {
         const coords = this.getCanvasCoordinates(e);
         
         if (this.currentMode === 'select') {
-            this.startSelection(e);
+            // Check for resize handle first
+            const handle = this.getResizeHandle(coords.x, coords.y);
+            if (handle && this.selectedAnnotation) {
+                this.isResizing = true;
+                this.resizeHandle = handle;
+                return;
+            }
+            
+            // Check for annotation selection
+            const annotation = this.getAnnotationAt(coords.x, coords.y);
+            if (annotation) {
+                this.selectAnnotation(annotation);
+                this.isDragging = true;
+                this.dragOffset = {
+                    x: coords.x - (annotation.x || annotation.startX),
+                    y: coords.y - (annotation.y || annotation.startY)
+                };
+            } else {
+                this.selectedAnnotation = null;
+                this.startSelection(e);
+            }
         } else if (this.currentMode === 'rect' || this.currentMode === 'circle' || this.currentMode === 'line') {
             this.isDrawing = true;
             this.selectionStart = { x: coords.x, y: coords.y };
         }
+        
+        this.updateSelectionButtons();
+        this.drawImage();
     }
     
     onMouseMove(e) {
@@ -339,7 +373,17 @@ class ImageEditor {
         const coords = this.getCanvasCoordinates(e);
         
         if (this.currentMode === 'select') {
-            this.updateSelection(e);
+            if (this.isResizing && this.selectedAnnotation) {
+                this.resizeAnnotation(coords.x, coords.y);
+                this.drawImage();
+            } else if (this.isDragging && this.selectedAnnotation) {
+                this.moveAnnotation(coords.x, coords.y);
+                this.drawImage();
+            } else {
+                this.updateSelection(e);
+                // Update cursor based on hover
+                this.updateCursor(coords.x, coords.y);
+            }
         } else if (this.isDrawing) {
             this.selectionEnd = { x: coords.x, y: coords.y };
             this.drawImage();
@@ -350,10 +394,15 @@ class ImageEditor {
         if (!this.currentImage) return;
         
         if (this.currentMode === 'select') {
+            this.isDragging = false;
+            this.isResizing = false;
+            this.resizeHandle = null;
             this.endSelection();
         } else if (this.isDrawing) {
             this.finishDrawing();
         }
+        
+        this.drawImage();
     }
     
     onCanvasClick(e) {
@@ -522,10 +571,268 @@ class ImageEditor {
         this.ctx.restore();
     }
     
+    getAnnotationAt(x, y) {
+        // Check annotations in reverse order (top to bottom)
+        for (let i = this.annotations.length - 1; i >= 0; i--) {
+            const annotation = this.annotations[i];
+            
+            if (annotation.type === 'text') {
+                // Rough text bounds check
+                const textWidth = this.ctx.measureText(annotation.text).width;
+                const textHeight = annotation.fontSize;
+                
+                if (x >= annotation.x && x <= annotation.x + textWidth &&
+                    y >= annotation.y - textHeight && y <= annotation.y) {
+                    return annotation;
+                }
+            } else {
+                const minX = Math.min(annotation.startX, annotation.endX);
+                const maxX = Math.max(annotation.startX, annotation.endX);
+                const minY = Math.min(annotation.startY, annotation.endY);
+                const maxY = Math.max(annotation.startY, annotation.endY);
+                
+                if (annotation.type === 'rect') {
+                    if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                        return annotation;
+                    }
+                } else if (annotation.type === 'circle') {
+                    const centerX = (annotation.startX + annotation.endX) / 2;
+                    const centerY = (annotation.startY + annotation.endY) / 2;
+                    const radius = Math.sqrt(Math.pow(annotation.endX - annotation.startX, 2) + Math.pow(annotation.endY - annotation.startY, 2)) / 2;
+                    const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                    
+                    if (distance <= radius) {
+                        return annotation;
+                    }
+                } else if (annotation.type === 'line') {
+                    // Simple line hit test (within 5 pixels)
+                    const lineDistance = this.distanceToLine(x, y, annotation.startX, annotation.startY, annotation.endX, annotation.endY);
+                    if (lineDistance <= 5) {
+                        return annotation;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    distanceToLine(px, py, x1, y1, x2, y2) {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        
+        if (lenSq === 0) return Math.sqrt(A * A + B * B);
+        
+        let param = dot / lenSq;
+        
+        if (param < 0) {
+            return Math.sqrt(A * A + B * B);
+        } else if (param > 1) {
+            const dx = px - x2;
+            const dy = py - y2;
+            return Math.sqrt(dx * dx + dy * dy);
+        } else {
+            const dx = px - (x1 + param * C);
+            const dy = py - (y1 + param * D);
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+    }
+    
+    selectAnnotation(annotation) {
+        this.selectedAnnotation = annotation;
+        this.updateSelectionButtons();
+    }
+    
+    updateSelectionButtons() {
+        const hasSelection = this.selectedAnnotation !== null;
+        document.getElementById('deleteSelectedBtn').disabled = !hasSelection;
+        document.getElementById('bringToFrontBtn').disabled = !hasSelection;
+        document.getElementById('sendToBackBtn').disabled = !hasSelection;
+    }
+    
+    moveAnnotation(x, y) {
+        if (!this.selectedAnnotation) return;
+        
+        const newX = x - this.dragOffset.x;
+        const newY = y - this.dragOffset.y;
+        
+        if (this.selectedAnnotation.type === 'text') {
+            this.selectedAnnotation.x = newX;
+            this.selectedAnnotation.y = newY;
+        } else {
+            const deltaX = newX - this.selectedAnnotation.startX;
+            const deltaY = newY - this.selectedAnnotation.startY;
+            
+            this.selectedAnnotation.startX = newX;
+            this.selectedAnnotation.startY = newY;
+            this.selectedAnnotation.endX += deltaX;
+            this.selectedAnnotation.endY += deltaY;
+        }
+    }
+    
+    getResizeHandle(x, y) {
+        if (!this.selectedAnnotation || this.selectedAnnotation.type === 'text') return null;
+        
+        const handles = this.getResizeHandles();
+        const handleSize = 8;
+        
+        for (const [name, handle] of Object.entries(handles)) {
+            if (Math.abs(x - handle.x) <= handleSize && Math.abs(y - handle.y) <= handleSize) {
+                return name;
+            }
+        }
+        
+        return null;
+    }
+    
+    getResizeHandles() {
+        if (!this.selectedAnnotation || this.selectedAnnotation.type === 'text') return {};
+        
+        const ann = this.selectedAnnotation;
+        const minX = Math.min(ann.startX, ann.endX);
+        const maxX = Math.max(ann.startX, ann.endX);
+        const minY = Math.min(ann.startY, ann.endY);
+        const maxY = Math.max(ann.startY, ann.endY);
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        
+        return {
+            'nw': { x: minX, y: minY },
+            'ne': { x: maxX, y: minY },
+            'sw': { x: minX, y: maxY },
+            'se': { x: maxX, y: maxY },
+            'n': { x: centerX, y: minY },
+            's': { x: centerX, y: maxY },
+            'w': { x: minX, y: centerY },
+            'e': { x: maxX, y: centerY }
+        };
+    }
+    
+    resizeAnnotation(x, y) {
+        if (!this.selectedAnnotation || !this.resizeHandle) return;
+        
+        const ann = this.selectedAnnotation;
+        
+        switch (this.resizeHandle) {
+            case 'nw':
+                ann.startX = x;
+                ann.startY = y;
+                break;
+            case 'ne':
+                ann.endX = x;
+                ann.startY = y;
+                break;
+            case 'sw':
+                ann.startX = x;
+                ann.endY = y;
+                break;
+            case 'se':
+                ann.endX = x;
+                ann.endY = y;
+                break;
+            case 'n':
+                ann.startY = y;
+                break;
+            case 's':
+                ann.endY = y;
+                break;
+            case 'w':
+                ann.startX = x;
+                break;
+            case 'e':
+                ann.endX = x;
+                break;
+        }
+    }
+    
+    updateCursor(x, y) {
+        if (this.selectedAnnotation) {
+            const handle = this.getResizeHandle(x, y);
+            if (handle) {
+                const cursors = {
+                    'nw': 'nw-resize',
+                    'ne': 'ne-resize',
+                    'sw': 'sw-resize',
+                    'se': 'se-resize',
+                    'n': 'n-resize',
+                    's': 's-resize',
+                    'w': 'w-resize',
+                    'e': 'e-resize'
+                };
+                this.canvas.style.cursor = cursors[handle];
+                return;
+            }
+        }
+        
+        const annotation = this.getAnnotationAt(x, y);
+        this.canvas.style.cursor = annotation ? 'move' : 'crosshair';
+    }
+    
+    drawSelectionHandles() {
+        if (!this.selectedAnnotation || this.selectedAnnotation.type === 'text') return;
+        
+        this.ctx.save();
+        this.ctx.scale(this.zoomLevel, this.zoomLevel);
+        
+        const handles = this.getResizeHandles();
+        const handleSize = 6;
+        
+        this.ctx.fillStyle = '#007bff';
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 1;
+        
+        for (const handle of Object.values(handles)) {
+            this.ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+            this.ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+        }
+        
+        this.ctx.restore();
+    }
+    
+    deleteSelected() {
+        if (!this.selectedAnnotation) return;
+        
+        const index = this.annotations.indexOf(this.selectedAnnotation);
+        if (index > -1) {
+            this.annotations.splice(index, 1);
+            this.selectedAnnotation = null;
+            this.updateSelectionButtons();
+            this.drawImage();
+        }
+    }
+    
+    bringToFront() {
+        if (!this.selectedAnnotation) return;
+        
+        const index = this.annotations.indexOf(this.selectedAnnotation);
+        if (index > -1) {
+            this.annotations.splice(index, 1);
+            this.annotations.push(this.selectedAnnotation);
+            this.drawImage();
+        }
+    }
+    
+    sendToBack() {
+        if (!this.selectedAnnotation) return;
+        
+        const index = this.annotations.indexOf(this.selectedAnnotation);
+        if (index > -1) {
+            this.annotations.splice(index, 1);
+            this.annotations.unshift(this.selectedAnnotation);
+            this.drawImage();
+        }
+    }
+    
     resetImage() {
         if (!this.originalImageData) return;
         
         this.annotations = [];
+        this.selectedAnnotation = null;
+        this.updateSelectionButtons();
         this.loadImage(this.originalImageData);
         this.resetSelection();
     }
