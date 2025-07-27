@@ -23,6 +23,7 @@ class ImageEditor {
         this.isEditingText = false;
         this.editingAnnotation = null;
         this.inlineEditor = document.getElementById('inlineTextEditor');
+        this.defaultFontSize = 24; // Default font size since input is removed
         
         this.initializeEventListeners();
     }
@@ -504,7 +505,7 @@ class ImageEditor {
         // Set font properties
         const fontSize = existingAnnotation ? 
             existingAnnotation.fontSize : 
-            parseInt(document.getElementById('fontSizeInput').value);
+            this.defaultFontSize;
         const color = existingAnnotation ? 
             existingAnnotation.color : 
             document.getElementById('textColorInput').value;
@@ -543,7 +544,7 @@ class ImageEditor {
                 const imageX = canvasX / this.zoomLevel;
                 const imageY = canvasY / this.zoomLevel;
                 
-                const fontSize = parseInt(document.getElementById('fontSizeInput').value);
+                const fontSize = this.defaultFontSize;
                 const color = document.getElementById('textColorInput').value;
                 
                 const annotation = {
