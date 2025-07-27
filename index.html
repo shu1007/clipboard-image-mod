@@ -24,85 +24,139 @@
                 </div>
                 
                 <div class="controls">
-                    <div class="control-group">
-                        <h3>リサイズ</h3>
-                        <div class="input-group">
-                            <label>幅: <input type="number" id="widthInput" min="1"></label>
-                            <label>高さ: <input type="number" id="heightInput" min="1"></label>
-                            <label><input type="checkbox" id="autoResizeCheck"> 自動リサイズを有効にする</label>
-                            <button id="resizeBtn">手動で適用</button>
-                        </div>
-                    </div>
-                    
-                    <div class="control-group">
-                        <h3>回転</h3>
-                        <div class="button-group">
-                            <button id="rotateLeftBtn">左90°</button>
-                            <button id="rotateRightBtn">右90°</button>
-                        </div>
-                    </div>
-                    
-                    <div class="control-group">
-                        <h3>表示倍率</h3>
-                        <div class="input-group">
-                            <div class="zoom-controls">
-                                <button id="zoomOutBtn">-</button>
-                                <span id="zoomDisplay">100%</span>
-                                <button id="zoomInBtn">+</button>
+                    <!-- 表示倍率 (開いている) -->
+                    <div class="control-group" data-collapsed="false">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▼</span>
+                            表示倍率
+                        </h3>
+                        <div class="collapsible-content">
+                            <div class="input-group">
+                                <div class="zoom-controls">
+                                    <button id="zoomOutBtn">-</button>
+                                    <span id="zoomDisplay">100%</span>
+                                    <button id="zoomInBtn">+</button>
+                                </div>
+                                <div class="button-group">
+                                    <button id="fitToScreenBtn">画面に合わせる</button>
+                                    <button id="actualSizeBtn">実際のサイズ</button>
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 描画モード (開いている) -->
+                    <div class="control-group" data-collapsed="false">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▼</span>
+                            描画モード
+                        </h3>
+                        <div class="collapsible-content">
                             <div class="button-group">
-                                <button id="fitToScreenBtn">画面に合わせる</button>
-                                <button id="actualSizeBtn">実際のサイズ</button>
+                                <button id="selectModeBtn" class="active">選択</button>
+                                <button id="textModeBtn">テキスト</button>
+                                <button id="rectModeBtn">矩形</button>
+                                <button id="circleModeBtn">円</button>
+                                <button id="lineModeBtn">線</button>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="control-group">
-                        <h3>描画モード</h3>
-                        <div class="button-group">
-                            <button id="selectModeBtn" class="active">選択</button>
-                            <button id="textModeBtn">テキスト</button>
-                            <button id="rectModeBtn">矩形</button>
-                            <button id="circleModeBtn">円</button>
-                            <button id="lineModeBtn">線</button>
+                    <!-- テキスト設定 (開いている) -->
+                    <div class="control-group" data-collapsed="false">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▼</span>
+                            テキスト設定
+                        </h3>
+                        <div class="collapsible-content">
+                            <div class="input-group">
+                                <label>色: <input type="color" id="textColorInput" value="#000000"></label>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="control-group">
-                        <h3>テキスト設定</h3>
-                        <div class="input-group">
-                            <label>色: <input type="color" id="textColorInput" value="#000000"></label>
+                    <!-- 図形設定 (畳んでいる) -->
+                    <div class="control-group" data-collapsed="true">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▶</span>
+                            図形設定
+                        </h3>
+                        <div class="collapsible-content" style="display: none;">
+                            <div class="input-group">
+                                <label>線の色: <input type="color" id="strokeColorInput" value="#000000"></label>
+                                <label>塗りつぶし色: <input type="color" id="fillColorInput" value="#ffffff"></label>
+                                <label>線の太さ: <input type="number" id="lineWidthInput" value="2" min="1" max="20"></label>
+                                <label><input type="checkbox" id="fillShapeInput"> 塗りつぶし</label>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="control-group">
-                        <h3>図形設定</h3>
-                        <div class="input-group">
-                            <label>線の色: <input type="color" id="strokeColorInput" value="#000000"></label>
-                            <label>塗りつぶし色: <input type="color" id="fillColorInput" value="#ffffff"></label>
-                            <label>線の太さ: <input type="number" id="lineWidthInput" value="2" min="1" max="20"></label>
-                            <label><input type="checkbox" id="fillShapeInput"> 塗りつぶし</label>
+                    <!-- 選択したオブジェクト (畳んでいる) -->
+                    <div class="control-group" data-collapsed="true">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▶</span>
+                            選択したオブジェクト
+                        </h3>
+                        <div class="collapsible-content" style="display: none;">
+                            <div class="button-group">
+                                <button id="deleteSelectedBtn" disabled>削除</button>
+                                <button id="bringToFrontBtn" disabled>前面へ</button>
+                                <button id="sendToBackBtn" disabled>背面へ</button>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="control-group">
-                        <h3>選択したオブジェクト</h3>
-                        <div class="button-group">
-                            <button id="deleteSelectedBtn" disabled>削除</button>
-                            <button id="bringToFrontBtn" disabled>前面へ</button>
-                            <button id="sendToBackBtn" disabled>背面へ</button>
+                    <!-- リサイズ (畳んでいる) -->
+                    <div class="control-group" data-collapsed="true">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▶</span>
+                            リサイズ
+                        </h3>
+                        <div class="collapsible-content" style="display: none;">
+                            <div class="input-group">
+                                <label>幅: <input type="number" id="widthInput" min="1"></label>
+                                <label>高さ: <input type="number" id="heightInput" min="1"></label>
+                                <label><input type="checkbox" id="autoResizeCheck"> 自動リサイズを有効にする</label>
+                                <button id="resizeBtn">手動で適用</button>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="control-group">
-                        <h3>トリミング</h3>
-                        <button id="cropBtn">選択範囲をトリミング</button>
-                        <button id="resetCropBtn">選択解除</button>
+                    <!-- 回転 (畳んでいる) -->
+                    <div class="control-group" data-collapsed="true">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▶</span>
+                            回転
+                        </h3>
+                        <div class="collapsible-content" style="display: none;">
+                            <div class="button-group">
+                                <button id="rotateLeftBtn">左90°</button>
+                                <button id="rotateRightBtn">右90°</button>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="control-group">
-                        <h3>その他</h3>
-                        <button id="resetBtn">リセット</button>
+                    <!-- トリミング (畳んでいる) -->
+                    <div class="control-group" data-collapsed="true">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▶</span>
+                            トリミング
+                        </h3>
+                        <div class="collapsible-content" style="display: none;">
+                            <button id="cropBtn">選択範囲をトリミング</button>
+                            <button id="resetCropBtn">選択解除</button>
+                        </div>
+                    </div>
+                    
+                    <!-- その他 (畳んでいる) -->
+                    <div class="control-group" data-collapsed="true">
+                        <h3 class="collapsible-header">
+                            <span class="toggle-icon">▶</span>
+                            その他
+                        </h3>
+                        <div class="collapsible-content" style="display: none;">
+                            <button id="resetBtn">リセット</button>
+                        </div>
                     </div>
                 </div>
             </div>

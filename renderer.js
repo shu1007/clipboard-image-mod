@@ -70,6 +70,9 @@ class ImageEditor {
         // Inline text editor events
         this.inlineEditor.addEventListener('blur', () => this.finishTextEditing());
         this.inlineEditor.addEventListener('keydown', (e) => this.onTextEditorKeydown(e));
+        
+        // Initialize collapsible sections
+        this.initializeCollapsibleSections();
     }
     
     async loadFromClipboard() {
@@ -1199,6 +1202,30 @@ class ImageEditor {
             console.error('Error saving to clipboard:', error);
             alert('クリップボードに保存できませんでした');
         }
+    }
+    
+    initializeCollapsibleSections() {
+        const headers = document.querySelectorAll('.collapsible-header');
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const controlGroup = header.parentElement;
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('.toggle-icon');
+                const isCollapsed = controlGroup.dataset.collapsed === 'true';
+                
+                if (isCollapsed) {
+                    // Expand
+                    content.style.display = 'block';
+                    controlGroup.dataset.collapsed = 'false';
+                    icon.textContent = '▼';
+                } else {
+                    // Collapse
+                    content.style.display = 'none';
+                    controlGroup.dataset.collapsed = 'true';
+                    icon.textContent = '▶';
+                }
+            });
+        });
     }
 }
 
