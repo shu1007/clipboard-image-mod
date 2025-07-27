@@ -18,6 +18,7 @@ class ImageEditor {
         this.isResizing = false;
         this.resizeHandle = null;
         this.dragOffset = { x: 0, y: 0 };
+        this.preventDimensionUpdate = false;
         
         this.initializeEventListeners();
     }
@@ -26,6 +27,10 @@ class ImageEditor {
         document.getElementById('loadBtn').addEventListener('click', () => this.loadFromClipboard());
         document.getElementById('saveBtn').addEventListener('click', () => this.saveToClipboard());
         document.getElementById('resizeBtn').addEventListener('click', () => this.resizeImage());
+        
+        // Prevent auto-resize when just updating display
+        document.getElementById('widthInput').addEventListener('input', () => this.onDimensionInput());
+        document.getElementById('heightInput').addEventListener('input', () => this.onDimensionInput());
         document.getElementById('rotateLeftBtn').addEventListener('click', () => this.rotateImage(-90));
         document.getElementById('rotateRightBtn').addEventListener('click', () => this.rotateImage(90));
         document.getElementById('cropBtn').addEventListener('click', () => this.cropImage());
@@ -101,10 +106,17 @@ class ImageEditor {
     }
     
     updateDimensionInputs() {
-        if (!this.currentImage) return;
+        if (!this.currentImage || this.preventDimensionUpdate) return;
         
+        this.preventDimensionUpdate = true;
         document.getElementById('widthInput').value = this.currentImage.width;
         document.getElementById('heightInput').value = this.currentImage.height;
+        this.preventDimensionUpdate = false;
+    }
+    
+    onDimensionInput() {
+        // This is called when user types in dimension inputs
+        // We don't auto-resize here, only when they click the resize button
     }
     
     resizeImage() {

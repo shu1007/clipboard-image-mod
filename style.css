@@ -71,18 +71,17 @@ main {
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     padding: 1rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     min-height: 400px;
     overflow: auto;
     position: relative;
+    display: block;
 }
 
 #canvas {
     border: 2px dashed #ddd;
     cursor: crosshair;
     display: block;
+    margin: auto;
 }
 
 .controls {
