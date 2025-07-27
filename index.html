@@ -70,7 +70,16 @@
                         </h3>
                         <div class="collapsible-content">
                             <div class="input-group">
-                                <label>色: <input type="color" id="textColorInput" value="#000000"></label>
+                                <label>色:</label>
+                                <div class="color-palette">
+                                    <button class="color-btn active" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                                    <button class="color-btn" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                                    <button class="color-btn" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
+                                    <button class="color-btn" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
+                                    <button class="color-btn" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
+                                    <button class="color-btn" data-color="#800080" style="background-color: #800080;" title="紫"></button>
+                                    <button class="color-btn" data-color="#000000" style="background-color: #000000;" title="黒"></button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -83,8 +92,26 @@
                         </h3>
                         <div class="collapsible-content" style="display: none;">
                             <div class="input-group">
-                                <label>線の色: <input type="color" id="strokeColorInput" value="#000000"></label>
-                                <label>塗りつぶし色: <input type="color" id="fillColorInput" value="#ffffff"></label>
+                                <label>線の色:</label>
+                                <div class="color-palette">
+                                    <button class="color-btn stroke-color active" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                                    <button class="color-btn stroke-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                                    <button class="color-btn stroke-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
+                                    <button class="color-btn stroke-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
+                                    <button class="color-btn stroke-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
+                                    <button class="color-btn stroke-color" data-color="#800080" style="background-color: #800080;" title="紫"></button>
+                                    <button class="color-btn stroke-color" data-color="#000000" style="background-color: #000000;" title="黒"></button>
+                                </div>
+                                <label>塗りつぶし色:</label>
+                                <div class="color-palette">
+                                    <button class="color-btn fill-color" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                                    <button class="color-btn fill-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                                    <button class="color-btn fill-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
+                                    <button class="color-btn fill-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
+                                    <button class="color-btn fill-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
+                                    <button class="color-btn fill-color" data-color="#800080" style="background-color: #800080;" title="紫"></button>
+                                    <button class="color-btn fill-color active" data-color="#ffffff" style="background-color: #ffffff; border: 1px solid #ccc;" title="白"></button>
+                                </div>
                                 <label>線の太さ: <input type="number" id="lineWidthInput" value="2" min="1" max="20"></label>
                                 <label><input type="checkbox" id="fillShapeInput"> 塗りつぶし</label>
                             </div>

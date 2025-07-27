@@ -24,6 +24,7 @@ class ImageEditor {
         this.editingAnnotation = null;
         this.inlineEditor = document.getElementById('inlineTextEditor');
         this.defaultFontSize = 24; // Default font size since input is removed
+        this.resizeStartData = null;
         
         this.initializeEventListeners();
     }
@@ -73,6 +74,9 @@ class ImageEditor {
         
         // Initialize collapsible sections
         this.initializeCollapsibleSections();
+        
+        // Initialize color palette events
+        this.initializeColorPalette();
     }
     
     async loadFromClipboard() {
@@ -402,6 +406,7 @@ class ImageEditor {
             if (handle && this.selectedAnnotation) {
                 this.isResizing = true;
                 this.resizeHandle = handle;
+                this.resizeStartData = null; // Reset resize start data
                 return;
             }
             
@@ -457,6 +462,7 @@ class ImageEditor {
             this.isDragging = false;
             this.isResizing = false;
             this.resizeHandle = null;
+            this.resizeStartData = null; // Clear resize start data
             this.endSelection();
         } else if (this.isDrawing) {
             this.finishDrawing();
@@ -511,7 +517,7 @@ class ImageEditor {
             this.defaultFontSize;
         const color = existingAnnotation ? 
             existingAnnotation.color : 
-            document.getElementById('textColorInput').value;
+            this.currentTextColor;
             
         this.inlineEditor.style.fontSize = (fontSize * this.zoomLevel) + 'px';
         this.inlineEditor.style.color = color;
@@ -548,7 +554,7 @@ class ImageEditor {
                 const imageY = canvasY / this.zoomLevel;
                 
                 const fontSize = this.defaultFontSize;
-                const color = document.getElementById('textColorInput').value;
+                const color = this.currentTextColor;
                 
                 const annotation = {
                     type: 'text',
@@ -601,8 +607,8 @@ class ImageEditor {
             return;
         }
         
-        const strokeColor = document.getElementById('strokeColorInput').value;
-        const fillColor = document.getElementById('fillColorInput').value;
+        const strokeColor = this.currentStrokeColor;
+        const fillColor = this.currentFillColor;
         const lineWidth = parseInt(document.getElementById('lineWidthInput').value);
         const fillShape = document.getElementById('fillShapeInput').checked;
         
@@ -628,8 +634,8 @@ class ImageEditor {
     drawCurrentShape() {
         if (!this.isDrawing || !this.selectionStart || !this.selectionEnd) return;
         
-        const strokeColor = document.getElementById('strokeColorInput').value;
-        const fillColor = document.getElementById('fillColorInput').value;
+        const strokeColor = this.currentStrokeColor;
+        const fillColor = this.currentFillColor;
         const lineWidth = parseInt(document.getElementById('lineWidthInput').value);
         const fillShape = document.getElementById('fillShapeInput').checked;
         
@@ -918,37 +924,47 @@ class ImageEditor {
                 ann.scale = 1.0;
             }
             
-            // Calculate scale based on handle movement
-            const bounds = this.getTextBounds(ann);
-            const originalWidth = bounds.width / ann.scale;
-            const originalHeight = bounds.height / ann.scale;
+            // Store the initial bounds and position when starting resize
+            if (!this.resizeStartData) {
+                this.resizeStartData = {
+                    startX: ann.x,
+                    startY: ann.y,
+                    originalScale: ann.scale,
+                    originalBounds: this.getTextBounds(ann)
+                };
+            }
             
-            let newScale = ann.scale;
+            // Use the original bounds from when resize started
+            const startData = this.resizeStartData;
+            const originalWidth = startData.originalBounds.width / startData.originalScale;
+            const originalHeight = startData.originalBounds.height / startData.originalScale;
+            
+            let newScale = startData.originalScale;
             
             switch (this.resizeHandle) {
                 case 'se': // Bottom-right corner - most intuitive
-                    const newWidth = x - ann.x;
-                    const newHeight = (ann.y) - y; // y grows downward, but text y is baseline
-                    newScale = Math.max(0.1, Math.min(newWidth / originalWidth, Math.abs(newHeight) / originalHeight));
+                    const newWidth = x - startData.startX;
+                    const newHeight = Math.abs(y - (startData.startY - startData.originalBounds.height));
+                    newScale = Math.max(0.1, Math.min(newWidth / originalWidth, newHeight / originalHeight));
                     break;
                 case 'nw': // Top-left corner
-                    const deltaX = ann.x - x;
-                    const deltaY = y - (ann.y - bounds.height);
+                    const deltaX = startData.startX - x;
+                    const deltaY = (startData.startY - startData.originalBounds.height) - y;
                     newScale = Math.max(0.1, Math.min(deltaX / originalWidth, deltaY / originalHeight));
                     // Move the text position when resizing from top-left
                     ann.x = x;
-                    ann.y = y + (bounds.height * newScale);
+                    ann.y = y + (originalHeight * newScale);
                     break;
                 case 'ne': // Top-right corner
-                    const widthFromNE = x - ann.x;
-                    const heightFromNE = (ann.y - bounds.height) - y;
+                    const widthFromNE = x - startData.startX;
+                    const heightFromNE = (startData.startY - startData.originalBounds.height) - y;
                     newScale = Math.max(0.1, Math.min(widthFromNE / originalWidth, heightFromNE / originalHeight));
-                    ann.y = y + (bounds.height * newScale);
+                    ann.y = y + (originalHeight * newScale);
                     break;
                 case 'sw': // Bottom-left corner
-                    const widthFromSW = ann.x - x;
-                    const heightFromSW = (ann.y) - y;
-                    newScale = Math.max(0.1, Math.min(widthFromSW / originalWidth, Math.abs(heightFromSW) / originalHeight));
+                    const widthFromSW = startData.startX - x;
+                    const heightFromSW = Math.abs(y - (startData.startY - startData.originalBounds.height));
+                    newScale = Math.max(0.1, Math.min(widthFromSW / originalWidth, heightFromSW / originalHeight));
                     ann.x = x;
                     break;
             }
@@ -1224,6 +1240,49 @@ class ImageEditor {
                     controlGroup.dataset.collapsed = 'true';
                     icon.textContent = '▶';
                 }
+            });
+        });
+    }
+    
+    initializeColorPalette() {
+        // Initialize current colors
+        this.currentTextColor = '#ff0000'; // Default red
+        this.currentStrokeColor = '#ff0000'; // Default red
+        this.currentFillColor = '#ffffff'; // Default white
+        
+        // Add event listeners for text color buttons
+        document.querySelectorAll('.color-btn:not(.stroke-color):not(.fill-color)').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all text color buttons
+                document.querySelectorAll('.color-btn:not(.stroke-color):not(.fill-color)').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                btn.classList.add('active');
+                // Update current text color
+                this.currentTextColor = btn.dataset.color;
+            });
+        });
+        
+        // Add event listeners for stroke color buttons
+        document.querySelectorAll('.color-btn.stroke-color').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all stroke color buttons
+                document.querySelectorAll('.color-btn.stroke-color').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                btn.classList.add('active');
+                // Update current stroke color
+                this.currentStrokeColor = btn.dataset.color;
+            });
+        });
+        
+        // Add event listeners for fill color buttons
+        document.querySelectorAll('.color-btn.fill-color').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all fill color buttons
+                document.querySelectorAll('.color-btn.fill-color').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                btn.classList.add('active');
+                // Update current fill color
+                this.currentFillColor = btn.dataset.color;
             });
         });
     }
