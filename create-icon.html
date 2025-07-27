@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Creator</title>
+</head>
+<body>
+    <canvas id="canvas" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    <br>
+    <button onclick="downloadPNG()">Download PNG</button>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set background
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Create gradient background
+        const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 300);
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(1, '#e3f2fd');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Draw clipboard body
+        ctx.fillStyle = '#2196f3';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 15;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+        
+        // Rounded rectangle for clipboard
+        const clipX = 100, clipY = 80, clipW = 312, clipH = 380;
+        const radius = 20;
+        
+        ctx.beginPath();
+        ctx.moveTo(clipX + radius, clipY);
+        ctx.lineTo(clipX + clipW - radius, clipY);
+        ctx.quadraticCurveTo(clipX + clipW, clipY, clipX + clipW, clipY + radius);
+        ctx.lineTo(clipX + clipW, clipY + clipH - radius);
+        ctx.quadraticCurveTo(clipX + clipW, clipY + clipH, clipX + clipW - radius, clipY + clipH);
+        ctx.lineTo(clipX + radius, clipY + clipH);
+        ctx.quadraticCurveTo(clipX, clipY + clipH, clipX, clipY + clipH - radius);
+        ctx.lineTo(clipX, clipY + radius);
+        ctx.quadraticCurveTo(clipX, clipY, clipX + radius, clipY);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw clipboard clip at the top
+        ctx.fillStyle = '#37474f';
+        ctx.fillRect(180, 40, 152, 40);
+        
+        // Clip highlights
+        ctx.fillStyle = '#546e7a';
+        ctx.fillRect(185, 45, 142, 8);
+        ctx.fillRect(185, 60, 142, 8);
+        
+        // Draw paper sheets
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(130, 120, 252, 300);
+        
+        // Paper shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(135, 125, 252, 300);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(130, 120, 252, 295);
+        
+        // Draw image placeholder on paper
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillRect(150, 160, 100, 80);
+        
+        // Image highlight
+        ctx.fillStyle = '#fff59d';
+        ctx.fillRect(150, 160, 100, 20);
+        
+        // Draw paint brush
+        ctx.strokeStyle = '#ff5722';
+        ctx.lineWidth = 12;
+        ctx.lineCap = 'round';
+        
+        // Brush handle
+        ctx.beginPath();
+        ctx.moveTo(300, 200);
+        ctx.lineTo(380, 280);
+        ctx.stroke();
+        
+        // Brush tip
+        ctx.fillStyle = '#ff5722';
+        ctx.beginPath();
+        ctx.arc(385, 285, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Brush ferrule (metal part)
+        ctx.fillStyle = '#757575';
+        ctx.fillRect(370, 270, 20, 15);
+        
+        // Draw paint stroke
+        ctx.strokeStyle = '#f44336';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        
+        ctx.beginPath();
+        ctx.moveTo(270, 180);
+        ctx.quadraticCurveTo(320, 170, 350, 200);
+        ctx.stroke();
+        
+        // Add some text lines on paper
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillRect(150, 280, 180, 4);
+        ctx.fillRect(150, 300, 200, 4);
+        ctx.fillRect(150, 320, 160, 4);
+        ctx.fillRect(150, 340, 190, 4);
+        
+        // Add sparkle effects
+        const sparkles = [
+            {x: 120, y: 150, size: 8},
+            {x: 350, y: 140, size: 6},
+            {x: 400, y: 200, size: 10},
+            {x: 140, y: 380, size: 7},
+            {x: 380, y: 350, size: 9}
+        ];
+        
+        sparkles.forEach(sparkle => {
+            ctx.fillStyle = '#ffc107';
+            ctx.save();
+            ctx.translate(sparkle.x, sparkle.y);
+            
+            // Draw star
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI) / 4;
+                const radius = i % 2 === 0 ? sparkle.size : sparkle.size / 2;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        });
+        
+        function downloadPNG() {
+            const link = document.createElement('a');
+            link.download = 'icon-512.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>

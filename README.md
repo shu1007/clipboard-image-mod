@@ -35,10 +35,34 @@ npm install
 
 # アプリケーションの起動
 npm start
-
-# ビルド（実行ファイル作成）
-npm run build
 ```
+
+### ビルド
+```bash
+# 現在のプラットフォーム用にビルド
+npm run build
+
+# Mac用ビルド（DMG + ZIP）
+npm run build:mac
+
+# Windows用ビルド（NSIS インストーラー + ZIP）
+npm run build:win
+
+# Mac・Windows両方ビルド
+npm run build:all
+# または
+npm run dist
+
+# ビルド結果は dist/ フォルダに出力されます
+```
+
+### ビルド出力
+- **Mac**: 
+  - `Clipboard Image Editor-1.0.0.dmg` (インストーラー)
+  - `Clipboard Image Editor-1.0.0-mac.zip` (圧縮版)
+- **Windows**: 
+  - `Clipboard Image Editor Setup 1.0.0.exe` (インストーラー)
+  - `Clipboard Image Editor-1.0.0-win.zip` (圧縮版)
 
 ## 使い方
 
