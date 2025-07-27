@@ -28,7 +28,8 @@ class ImageEditor {
         document.getElementById('saveBtn').addEventListener('click', () => this.saveToClipboard());
         document.getElementById('resizeBtn').addEventListener('click', () => this.resizeImage());
         
-        // Prevent auto-resize when just updating display
+        // Auto-resize checkbox control
+        document.getElementById('autoResizeCheck').addEventListener('change', () => this.onAutoResizeToggle());
         document.getElementById('widthInput').addEventListener('input', () => this.onDimensionInput());
         document.getElementById('heightInput').addEventListener('input', () => this.onDimensionInput());
         document.getElementById('rotateLeftBtn').addEventListener('click', () => this.rotateImage(-90));
@@ -115,8 +116,29 @@ class ImageEditor {
     }
     
     onDimensionInput() {
-        // This is called when user types in dimension inputs
-        // We don't auto-resize here, only when they click the resize button
+        // Check if auto-resize is enabled
+        const autoResize = document.getElementById('autoResizeCheck').checked;
+        if (autoResize && !this.preventDimensionUpdate) {
+            this.resizeImage();
+        }
+    }
+    
+    onAutoResizeToggle() {
+        // Update button text based on checkbox state
+        const autoResize = document.getElementById('autoResizeCheck').checked;
+        const resizeBtn = document.getElementById('resizeBtn');
+        
+        if (autoResize) {
+            resizeBtn.textContent = '自動リサイズ中';
+            resizeBtn.disabled = true;
+            // Apply current dimensions immediately when enabling auto-resize
+            if (!this.preventDimensionUpdate) {
+                this.resizeImage();
+            }
+        } else {
+            resizeBtn.textContent = '手動で適用';
+            resizeBtn.disabled = false;
+        }
     }
     
     resizeImage() {
