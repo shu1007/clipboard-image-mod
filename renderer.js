@@ -23,9 +23,11 @@ class ImageEditor {
         this.isEditingText = false;
         this.editingAnnotation = null;
         this.inlineEditor = document.getElementById('inlineTextEditor');
-        this.defaultFontSize = 24; // Default font size since input is removed
+        this.defaultFontSize = 24;
         this.resizeStartData = null;
-        
+        this.undoStack = [];
+        this.maxUndoSteps = 30;
+
         this.initializeEventListeners();
     }
     
@@ -67,14 +69,15 @@ class ImageEditor {
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
         this.canvas.addEventListener('click', (e) => this.onCanvasClick(e));
         this.canvas.addEventListener('dblclick', (e) => this.onCanvasDoubleClick(e));
-        
+        this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+
         // Inline text editor events
         this.inlineEditor.addEventListener('blur', () => this.finishTextEditing());
         this.inlineEditor.addEventListener('keydown', (e) => this.onTextEditorKeydown(e));
-        
-        // Initialize collapsible sections
-        this.initializeCollapsibleSections();
-        
+
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', (e) => this.onKeyDown(e));
+
         // Initialize color palette events
         this.initializeColorPalette();
     }
@@ -96,19 +99,80 @@ class ImageEditor {
     loadImage(dataURL) {
         const img = new Image();
         img.onload = () => {
-            this.isInitializing = true; // Prevent any resize during initialization
+            this.isInitializing = true;
             this.originalImageData = dataURL;
             this.currentImage = img;
+            this.undoStack = []; // reset undo history on new image load
+            this.annotations = [];
+            this.selectedAnnotation = null;
+            this.updateSelectionButtons();
             this.drawImage();
             this.updateDimensionInputs();
             document.getElementById('saveBtn').disabled = false;
-            
-            // Small delay to ensure all events are processed before allowing resize
+
             setTimeout(() => {
                 this.isInitializing = false;
             }, 100);
         };
         img.src = dataURL;
+    }
+
+    pushUndoState() {
+        const state = {
+            annotations: JSON.parse(JSON.stringify(this.annotations)),
+            imageSrc: this.currentImage ? this.currentImage.src : null
+        };
+        this.undoStack.push(state);
+        if (this.undoStack.length > this.maxUndoSteps) {
+            this.undoStack.shift();
+        }
+    }
+
+    undo() {
+        if (this.undoStack.length === 0) return;
+        const state = this.undoStack.pop();
+        this.annotations = state.annotations;
+        const prevSrc = this.currentImage ? this.currentImage.src : null;
+        if (state.imageSrc && state.imageSrc !== prevSrc) {
+            const img = new Image();
+            img.onload = () => {
+                this.currentImage = img;
+                this.selectedAnnotation = null;
+                this.updateSelectionButtons();
+                this.updateDimensionInputs();
+                this.drawImage();
+            };
+            img.src = state.imageSrc;
+        } else {
+            this.selectedAnnotation = null;
+            this.updateSelectionButtons();
+            this.drawImage();
+        }
+    }
+
+    onKeyDown(e) {
+        if (this.isEditingText) return;
+
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            this.undo();
+            return;
+        }
+
+        if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedAnnotation) {
+            e.preventDefault();
+            this.deleteSelected();
+        }
+    }
+
+    onWheel(e) {
+        e.preventDefault();
+        if (!this.currentImage) return;
+        if (e.deltaY < 0) {
+            this.zoomIn();
+        } else {
+            this.zoomOut();
+        }
     }
     
     drawImage() {
@@ -173,6 +237,7 @@ class ImageEditor {
     
     resizeImage() {
         if (!this.currentImage) return;
+        this.pushUndoState();
         
         const newWidth = parseInt(document.getElementById('widthInput').value);
         const newHeight = parseInt(document.getElementById('heightInput').value);
@@ -200,6 +265,7 @@ class ImageEditor {
     
     rotateImage(degrees) {
         if (!this.currentImage) return;
+        this.pushUndoState();
         
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
@@ -280,6 +346,7 @@ class ImageEditor {
             alert('トリミング範囲を選択してください');
             return;
         }
+        this.pushUndoState();
         
         const x = Math.min(this.selectionStart.x, this.selectionEnd.x);
         const y = Math.min(this.selectionStart.y, this.selectionEnd.y);
@@ -373,9 +440,9 @@ class ImageEditor {
     setMode(mode) {
         this.currentMode = mode;
         this.resetSelection();
-        
+
         // Update button styles
-        document.querySelectorAll('.button-group button').forEach(btn => {
+        document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         document.getElementById(mode + 'ModeBtn').classList.add('active');
@@ -404,16 +471,18 @@ class ImageEditor {
             // Check for resize handle first
             const handle = this.getResizeHandle(coords.x, coords.y);
             if (handle && this.selectedAnnotation) {
+                this.pushUndoState();
                 this.isResizing = true;
                 this.resizeHandle = handle;
-                this.resizeStartData = null; // Reset resize start data
+                this.resizeStartData = null;
                 return;
             }
-            
+
             // Check for annotation selection
             const annotation = this.getAnnotationAt(coords.x, coords.y);
             if (annotation) {
                 this.selectAnnotation(annotation);
+                this.pushUndoState();
                 this.isDragging = true;
                 this.dragOffset = {
                     x: coords.x - (annotation.x || annotation.startX),
@@ -533,10 +602,11 @@ class ImageEditor {
     
     finishTextEditing() {
         if (!this.isEditingText) return;
-        
+
         const text = this.inlineEditor.value.trim();
-        
+
         if (text) {
+            this.pushUndoState();
             if (this.editingAnnotation) {
                 // Update existing annotation
                 this.editingAnnotation.text = text;
@@ -606,6 +676,7 @@ class ImageEditor {
             this.isDrawing = false;
             return;
         }
+        this.pushUndoState();
         
         const strokeColor = this.currentStrokeColor;
         const fillColor = this.currentFillColor;
@@ -1082,7 +1153,8 @@ class ImageEditor {
     
     deleteSelected() {
         if (!this.selectedAnnotation) return;
-        
+        this.pushUndoState();
+
         const index = this.annotations.indexOf(this.selectedAnnotation);
         if (index > -1) {
             this.annotations.splice(index, 1);
@@ -1220,69 +1292,53 @@ class ImageEditor {
         }
     }
     
-    initializeCollapsibleSections() {
-        const headers = document.querySelectorAll('.collapsible-header');
-        headers.forEach(header => {
-            header.addEventListener('click', () => {
-                const controlGroup = header.parentElement;
-                const content = header.nextElementSibling;
-                const icon = header.querySelector('.toggle-icon');
-                const isCollapsed = controlGroup.dataset.collapsed === 'true';
-                
-                if (isCollapsed) {
-                    // Expand
-                    content.style.display = 'block';
-                    controlGroup.dataset.collapsed = 'false';
-                    icon.textContent = '▼';
-                } else {
-                    // Collapse
-                    content.style.display = 'none';
-                    controlGroup.dataset.collapsed = 'true';
-                    icon.textContent = '▶';
+    initializeColorPalette() {
+        // Initialize current colors
+        this.currentTextColor = '#ff0000';
+        this.currentStrokeColor = '#ff0000';
+        this.currentFillColor = '#ffffff';
+
+        // Main color palette (text + stroke unified)
+        document.querySelectorAll('#mainColorPalette .color-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#mainColorPalette .color-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.currentTextColor = btn.dataset.color;
+                this.currentStrokeColor = btn.dataset.color;
+
+                // Apply to selected annotation
+                if (this.selectedAnnotation) {
+                    this.pushUndoState();
+                    if (this.selectedAnnotation.type === 'text') {
+                        this.selectedAnnotation.color = btn.dataset.color;
+                    } else {
+                        this.selectedAnnotation.strokeColor = btn.dataset.color;
+                    }
+                    this.drawImage();
                 }
             });
         });
-    }
-    
-    initializeColorPalette() {
-        // Initialize current colors
-        this.currentTextColor = '#ff0000'; // Default red
-        this.currentStrokeColor = '#ff0000'; // Default red
-        this.currentFillColor = '#ffffff'; // Default white
-        
-        // Add event listeners for text color buttons
-        document.querySelectorAll('.color-btn:not(.stroke-color):not(.fill-color)').forEach(btn => {
+
+        // Fill color palette
+        document.querySelectorAll('#fillColorPalette .color-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Remove active class from all text color buttons
-                document.querySelectorAll('.color-btn:not(.stroke-color):not(.fill-color)').forEach(b => b.classList.remove('active'));
-                // Add active class to clicked button
+                document.querySelectorAll('#fillColorPalette .color-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                // Update current text color
-                this.currentTextColor = btn.dataset.color;
-            });
-        });
-        
-        // Add event listeners for stroke color buttons
-        document.querySelectorAll('.color-btn.stroke-color').forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Remove active class from all stroke color buttons
-                document.querySelectorAll('.color-btn.stroke-color').forEach(b => b.classList.remove('active'));
-                // Add active class to clicked button
-                btn.classList.add('active');
-                // Update current stroke color
-                this.currentStrokeColor = btn.dataset.color;
-            });
-        });
-        
-        // Add event listeners for fill color buttons
-        document.querySelectorAll('.color-btn.fill-color').forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Remove active class from all fill color buttons
-                document.querySelectorAll('.color-btn.fill-color').forEach(b => b.classList.remove('active'));
-                // Add active class to clicked button
-                btn.classList.add('active');
-                // Update current fill color
                 this.currentFillColor = btn.dataset.color;
+                const fillCheck = document.getElementById('fillShapeInput');
+                if (btn.dataset.color === 'transparent') {
+                    fillCheck.checked = false;
+                } else {
+                    fillCheck.checked = true;
+                }
+
+                // Apply to selected annotation (shapes only)
+                if (this.selectedAnnotation && this.selectedAnnotation.type !== 'text') {
+                    this.pushUndoState();
+                    this.selectedAnnotation.fillColor = btn.dataset.color;
+                    this.selectedAnnotation.fillShape = btn.dataset.color !== 'transparent';
+                    this.drawImage();
+                }
             });
         });
     }

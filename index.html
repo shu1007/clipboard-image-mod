@@ -15,181 +15,137 @@
                 <button id="saveBtn" disabled>クリップボードに保存</button>
             </div>
         </header>
-        
+
         <main>
             <div class="editor-panel">
                 <div class="canvas-container">
                     <canvas id="canvas"></canvas>
                     <input type="text" id="inlineTextEditor" class="inline-text-editor" style="display: none;">
                 </div>
-                
+
                 <div class="controls">
-                    <!-- 表示倍率 (開いている) -->
-                    <div class="control-group" data-collapsed="false">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▼</span>
-                            表示倍率
-                        </h3>
-                        <div class="collapsible-content">
-                            <div class="input-group">
-                                <div class="zoom-controls">
-                                    <button id="zoomOutBtn">-</button>
-                                    <span id="zoomDisplay">100%</span>
-                                    <button id="zoomInBtn">+</button>
-                                </div>
-                                <div class="button-group">
-                                    <button id="fitToScreenBtn">画面に合わせる</button>
-                                    <button id="actualSizeBtn">実際のサイズ</button>
-                                </div>
+                    <!-- ツール選択 -->
+                    <div class="control-section">
+                        <div class="section-title">ツール</div>
+                        <div class="tool-grid">
+                            <button id="selectModeBtn" class="tool-btn active" title="選択">
+                                <span class="tool-icon">↖</span>
+                                <span class="tool-label">選択</span>
+                            </button>
+                            <button id="textModeBtn" class="tool-btn" title="テキスト">
+                                <span class="tool-icon">T</span>
+                                <span class="tool-label">テキスト</span>
+                            </button>
+                            <button id="rectModeBtn" class="tool-btn" title="矩形">
+                                <span class="tool-icon">▭</span>
+                                <span class="tool-label">矩形</span>
+                            </button>
+                            <button id="circleModeBtn" class="tool-btn" title="円">
+                                <span class="tool-icon">◯</span>
+                                <span class="tool-label">円</span>
+                            </button>
+                            <button id="lineModeBtn" class="tool-btn" title="線">
+                                <span class="tool-icon">╱</span>
+                                <span class="tool-label">線</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- スタイル設定 -->
+                    <div class="control-section">
+                        <div class="section-title">スタイル</div>
+                        <div class="style-block">
+                            <div class="style-label">前景色（テキスト・線）</div>
+                            <div class="color-palette" id="mainColorPalette">
+                                <button class="color-btn active" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                                <button class="color-btn" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                                <button class="color-btn" data-color="#ffff00" style="background-color: #ffff00;" title="黄"></button>
+                                <button class="color-btn" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
+                                <button class="color-btn" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
+                                <button class="color-btn" data-color="#800080" style="background-color: #800080;" title="紫"></button>
+                                <button class="color-btn" data-color="#000000" style="background-color: #000000;" title="黒"></button>
+                                <button class="color-btn" data-color="#ffffff" style="background-color: #ffffff;" title="白"></button>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- 描画モード (開いている) -->
-                    <div class="control-group" data-collapsed="false">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▼</span>
-                            描画モード
-                        </h3>
-                        <div class="collapsible-content">
-                            <div class="button-group">
-                                <button id="selectModeBtn" class="active">選択</button>
-                                <button id="textModeBtn">テキスト</button>
-                                <button id="rectModeBtn">矩形</button>
-                                <button id="circleModeBtn">円</button>
-                                <button id="lineModeBtn">線</button>
+                        <div class="style-block">
+                            <div class="style-label">塗りつぶし色</div>
+                            <div class="color-palette" id="fillColorPalette">
+                                <button class="color-btn fill-color" data-color="transparent" title="なし" style="background: linear-gradient(to bottom right, #fff 45%, #f00 45%, #f00 55%, #fff 55%);"></button>
+                                <button class="color-btn fill-color" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                                <button class="color-btn fill-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                                <button class="color-btn fill-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄"></button>
+                                <button class="color-btn fill-color active" data-color="#ffffff" style="background-color: #ffffff;" title="白"></button>
+                                <button class="color-btn fill-color" data-color="#000000" style="background-color: #000000;" title="黒"></button>
                             </div>
                         </div>
+                        <div class="style-row">
+                            <label class="style-label-inline">線幅</label>
+                            <input type="number" id="lineWidthInput" value="2" min="1" max="20" class="line-width-input">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="fillShapeInput">
+                                塗りつぶし
+                            </label>
+                        </div>
                     </div>
-                    
-                    <!-- テキスト設定 (開いている) -->
-                    <div class="control-group" data-collapsed="false">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▼</span>
-                            テキスト設定
-                        </h3>
-                        <div class="collapsible-content">
-                            <div class="input-group">
-                                <label>色:</label>
-                                <div class="color-palette">
-                                    <button class="color-btn active" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
-                                    <button class="color-btn" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
-                                    <button class="color-btn" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
-                                    <button class="color-btn" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
-                                    <button class="color-btn" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
-                                    <button class="color-btn" data-color="#800080" style="background-color: #800080;" title="紫"></button>
-                                    <button class="color-btn" data-color="#000000" style="background-color: #000000;" title="黒"></button>
-                                </div>
+
+                    <!-- 表示倍率 -->
+                    <div class="control-section">
+                        <div class="section-title">表示倍率</div>
+                        <div class="zoom-row">
+                            <button id="zoomOutBtn" class="icon-btn">−</button>
+                            <span id="zoomDisplay" class="zoom-value">100%</span>
+                            <button id="zoomInBtn" class="icon-btn">+</button>
+                        </div>
+                        <div class="btn-row">
+                            <button id="fitToScreenBtn" class="secondary-btn">画面に合わせる</button>
+                            <button id="actualSizeBtn" class="secondary-btn">等倍</button>
+                        </div>
+                    </div>
+
+                    <!-- 選択中オブジェクト -->
+                    <div class="control-section">
+                        <div class="section-title">選択中</div>
+                        <div class="btn-row">
+                            <button id="deleteSelectedBtn" class="danger-btn" disabled>削除</button>
+                            <button id="bringToFrontBtn" class="secondary-btn" disabled>前面へ</button>
+                            <button id="sendToBackBtn" class="secondary-btn" disabled>背面へ</button>
+                        </div>
+                    </div>
+
+                    <!-- 画像操作 -->
+                    <div class="control-section">
+                        <div class="section-title">画像操作</div>
+                        <div class="btn-row">
+                            <button id="rotateLeftBtn" class="secondary-btn">↺ 左90°</button>
+                            <button id="rotateRightBtn" class="secondary-btn">↻ 右90°</button>
+                        </div>
+                        <div class="btn-row">
+                            <button id="cropBtn" class="secondary-btn">✂ トリミング</button>
+                            <button id="resetCropBtn" class="secondary-btn">選択解除</button>
+                        </div>
+                        <button id="resetBtn" class="danger-btn full-width">↩ リセット</button>
+                    </div>
+
+                    <!-- リサイズ（折りたたみ） -->
+                    <details class="control-section">
+                        <summary class="section-title summary-toggle">リサイズ ▸</summary>
+                        <div class="resize-content">
+                            <div class="resize-inputs">
+                                <label>幅 <input type="number" id="widthInput" min="1" class="size-input"></label>
+                                <label>高さ <input type="number" id="heightInput" min="1" class="size-input"></label>
                             </div>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoResizeCheck">
+                                自動リサイズ
+                            </label>
+                            <button id="resizeBtn" class="secondary-btn full-width">適用</button>
                         </div>
-                    </div>
-                    
-                    <!-- 図形設定 (畳んでいる) -->
-                    <div class="control-group" data-collapsed="true">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▶</span>
-                            図形設定
-                        </h3>
-                        <div class="collapsible-content" style="display: none;">
-                            <div class="input-group">
-                                <label>線の色:</label>
-                                <div class="color-palette">
-                                    <button class="color-btn stroke-color active" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
-                                    <button class="color-btn stroke-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
-                                    <button class="color-btn stroke-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
-                                    <button class="color-btn stroke-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
-                                    <button class="color-btn stroke-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
-                                    <button class="color-btn stroke-color" data-color="#800080" style="background-color: #800080;" title="紫"></button>
-                                    <button class="color-btn stroke-color" data-color="#000000" style="background-color: #000000;" title="黒"></button>
-                                </div>
-                                <label>塗りつぶし色:</label>
-                                <div class="color-palette">
-                                    <button class="color-btn fill-color" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
-                                    <button class="color-btn fill-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
-                                    <button class="color-btn fill-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
-                                    <button class="color-btn fill-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
-                                    <button class="color-btn fill-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
-                                    <button class="color-btn fill-color" data-color="#800080" style="background-color: #800080;" title="紫"></button>
-                                    <button class="color-btn fill-color active" data-color="#ffffff" style="background-color: #ffffff; border: 1px solid #ccc;" title="白"></button>
-                                </div>
-                                <label>線の太さ: <input type="number" id="lineWidthInput" value="2" min="1" max="20"></label>
-                                <label><input type="checkbox" id="fillShapeInput"> 塗りつぶし</label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 選択したオブジェクト (畳んでいる) -->
-                    <div class="control-group" data-collapsed="true">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▶</span>
-                            選択したオブジェクト
-                        </h3>
-                        <div class="collapsible-content" style="display: none;">
-                            <div class="button-group">
-                                <button id="deleteSelectedBtn" disabled>削除</button>
-                                <button id="bringToFrontBtn" disabled>前面へ</button>
-                                <button id="sendToBackBtn" disabled>背面へ</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- リサイズ (畳んでいる) -->
-                    <div class="control-group" data-collapsed="true">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▶</span>
-                            リサイズ
-                        </h3>
-                        <div class="collapsible-content" style="display: none;">
-                            <div class="input-group">
-                                <label>幅: <input type="number" id="widthInput" min="1"></label>
-                                <label>高さ: <input type="number" id="heightInput" min="1"></label>
-                                <label><input type="checkbox" id="autoResizeCheck"> 自動リサイズを有効にする</label>
-                                <button id="resizeBtn">手動で適用</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 回転 (畳んでいる) -->
-                    <div class="control-group" data-collapsed="true">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▶</span>
-                            回転
-                        </h3>
-                        <div class="collapsible-content" style="display: none;">
-                            <div class="button-group">
-                                <button id="rotateLeftBtn">左90°</button>
-                                <button id="rotateRightBtn">右90°</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- トリミング (畳んでいる) -->
-                    <div class="control-group" data-collapsed="true">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▶</span>
-                            トリミング
-                        </h3>
-                        <div class="collapsible-content" style="display: none;">
-                            <button id="cropBtn">選択範囲をトリミング</button>
-                            <button id="resetCropBtn">選択解除</button>
-                        </div>
-                    </div>
-                    
-                    <!-- その他 (畳んでいる) -->
-                    <div class="control-group" data-collapsed="true">
-                        <h3 class="collapsible-header">
-                            <span class="toggle-icon">▶</span>
-                            その他
-                        </h3>
-                        <div class="collapsible-content" style="display: none;">
-                            <button id="resetBtn">リセット</button>
-                        </div>
-                    </div>
+                    </details>
                 </div>
             </div>
         </main>
     </div>
-    
+
     <script src="renderer.js"></script>
 </body>
 </html>
