@@ -73,7 +73,8 @@ class ImageEditor {
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
         this.canvas.addEventListener('click', (e) => this.onCanvasClick(e));
         this.canvas.addEventListener('dblclick', (e) => this.onCanvasDoubleClick(e));
-        this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+        // Listen on the whole canvas area so trackpad/wheel zoom works outside the image too
+        document.querySelector('.canvas-container').addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
 
         // Inline text editor events
         this.inlineEditor.addEventListener('blur', () => this.finishTextEditing());
@@ -173,11 +174,9 @@ class ImageEditor {
     onWheel(e) {
         e.preventDefault();
         if (!this.currentImage) return;
-        if (e.deltaY < 0) {
-            this.zoomIn();
-        } else {
-            this.zoomOut();
-        }
+        // Proportional zoom: trackpads send many small deltas, mouse wheels send large ones
+        const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; // deltaMode 1 = lines
+        this.setZoom(this.zoomLevel * Math.exp(-delta * 0.0015), e);
     }
     
     drawImage() {
@@ -1257,15 +1256,39 @@ class ImageEditor {
     }
     
     zoomIn() {
-        this.zoomLevel = Math.min(this.zoomLevel * 1.25, 5.0);
-        this.updateZoomDisplay();
-        this.drawImage();
+        this.setZoom(this.zoomLevel * 1.25);
     }
-    
+
     zoomOut() {
-        this.zoomLevel = Math.max(this.zoomLevel / 1.25, 0.1);
+        this.setZoom(this.zoomLevel / 1.25);
+    }
+
+    // If an event is given, keep the image point under the pointer fixed while zooming
+    setZoom(newZoom, e = null) {
+        const clamped = Math.min(Math.max(newZoom, 0.1), 5.0);
+        if (clamped === this.zoomLevel) return;
+
+        let anchor = null;
+        if (e) {
+            const rect = this.canvas.getBoundingClientRect();
+            anchor = {
+                imageX: (e.clientX - rect.left) / this.zoomLevel,
+                imageY: (e.clientY - rect.top) / this.zoomLevel,
+                clientX: e.clientX,
+                clientY: e.clientY
+            };
+        }
+
+        this.zoomLevel = clamped;
         this.updateZoomDisplay();
         this.drawImage();
+
+        if (anchor) {
+            const container = document.querySelector('.canvas-container');
+            const rect = this.canvas.getBoundingClientRect();
+            container.scrollLeft += rect.left + anchor.imageX * clamped - anchor.clientX;
+            container.scrollTop += rect.top + anchor.imageY * clamped - anchor.clientY;
+        }
     }
     
     fitToScreen() {
