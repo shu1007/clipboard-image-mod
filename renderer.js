@@ -29,6 +29,7 @@ class ImageEditor {
         this.maxUndoSteps = 30;
 
         this.initializeEventListeners();
+        this.refreshControls();
     }
     
     initializeEventListeners() {
@@ -63,7 +64,10 @@ class ImageEditor {
         document.getElementById('deleteSelectedBtn').addEventListener('click', () => this.deleteSelected());
         document.getElementById('bringToFrontBtn').addEventListener('click', () => this.bringToFront());
         document.getElementById('sendToBackBtn').addEventListener('click', () => this.sendToBack());
-        
+
+        // Line width applies to the selected annotation
+        document.getElementById('lineWidthInput').addEventListener('change', () => this.onLineWidthChange());
+
         this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
@@ -105,7 +109,7 @@ class ImageEditor {
             this.undoStack = []; // reset undo history on new image load
             this.annotations = [];
             this.selectedAnnotation = null;
-            this.updateSelectionButtons();
+            this.refreshControls();
             this.drawImage();
             this.updateDimensionInputs();
             document.getElementById('saveBtn').disabled = false;
@@ -138,14 +142,14 @@ class ImageEditor {
             img.onload = () => {
                 this.currentImage = img;
                 this.selectedAnnotation = null;
-                this.updateSelectionButtons();
+                this.refreshControls();
                 this.updateDimensionInputs();
                 this.drawImage();
             };
             img.src = state.imageSrc;
         } else {
             this.selectedAnnotation = null;
-            this.updateSelectionButtons();
+            this.refreshControls();
             this.drawImage();
         }
     }
@@ -159,7 +163,8 @@ class ImageEditor {
             return;
         }
 
-        if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedAnnotation) {
+        // Ignore while typing in toolbar inputs (e.g. line width) so Backspace doesn't delete the annotation
+        if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedAnnotation && e.target.tagName !== 'INPUT') {
             e.preventDefault();
             this.deleteSelected();
         }
@@ -460,6 +465,8 @@ class ImageEditor {
             default:
                 this.canvas.style.cursor = 'crosshair';
         }
+
+        this.refreshControls();
     }
     
     onMouseDown(e) {
@@ -490,6 +497,7 @@ class ImageEditor {
                 };
             } else {
                 this.selectedAnnotation = null;
+                this.refreshControls();
                 this.startSelection(e);
             }
         } else if (this.currentMode === 'rect' || this.currentMode === 'circle' || this.currentMode === 'line') {
@@ -497,7 +505,7 @@ class ImageEditor {
             this.selectionStart = { x: coords.x, y: coords.y };
         }
         
-        this.updateSelectionButtons();
+        this.refreshControls();
         this.drawImage();
     }
     
@@ -681,7 +689,7 @@ class ImageEditor {
         const strokeColor = this.currentStrokeColor;
         const fillColor = this.currentFillColor;
         const lineWidth = parseInt(document.getElementById('lineWidthInput').value);
-        const fillShape = document.getElementById('fillShapeInput').checked;
+        const fillShape = this.currentFillColor !== 'transparent';
         
         const annotation = {
             type: this.currentMode,
@@ -708,7 +716,7 @@ class ImageEditor {
         const strokeColor = this.currentStrokeColor;
         const fillColor = this.currentFillColor;
         const lineWidth = parseInt(document.getElementById('lineWidthInput').value);
-        const fillShape = document.getElementById('fillShapeInput').checked;
+        const fillShape = this.currentFillColor !== 'transparent';
         
         this.ctx.save();
         this.ctx.scale(this.zoomLevel, this.zoomLevel);
@@ -897,7 +905,7 @@ class ImageEditor {
     
     selectAnnotation(annotation) {
         this.selectedAnnotation = annotation;
-        this.updateSelectionButtons();
+        this.refreshControls();
     }
     
     updateSelectionButtons() {
@@ -905,6 +913,58 @@ class ImageEditor {
         document.getElementById('deleteSelectedBtn').disabled = !hasSelection;
         document.getElementById('bringToFrontBtn').disabled = !hasSelection;
         document.getElementById('sendToBackBtn').disabled = !hasSelection;
+    }
+
+    refreshControls() {
+        this.updateSelectionButtons();
+        this.updateControlVisibility();
+        this.syncPaletteToTarget();
+    }
+
+    // 選択中オブジェクト、または現在の描画ツールに関係する設定だけ表示する
+    updateControlVisibility() {
+        const ann = this.selectedAnnotation;
+        const drawModes = ['text', 'rect', 'circle', 'line'];
+        const kind = ann ? ann.type : (drawModes.includes(this.currentMode) ? this.currentMode : null);
+        const hasFill = kind === 'rect' || kind === 'circle';
+        const hasWidth = hasFill || kind === 'line';
+
+        document.getElementById('fgGroup').hidden = kind === null;
+        document.getElementById('fillGroup').hidden = !hasFill;
+        document.getElementById('widthGroup').hidden = !hasWidth;
+        document.getElementById('selectionGroup').hidden = !ann;
+    }
+
+    // 選択中オブジェクトの値をパレットと線幅に反映する（未選択時は現在の設定）
+    syncPaletteToTarget() {
+        const ann = this.selectedAnnotation;
+        let fg = this.currentStrokeColor;
+        let fill = this.currentFillColor;
+
+        if (ann) {
+            fg = ann.type === 'text' ? ann.color : ann.strokeColor;
+            if (ann.type !== 'text') {
+                fill = ann.fillColor;
+                document.getElementById('lineWidthInput').value = ann.lineWidth;
+            }
+        }
+
+        this.markActiveSwatch('#mainColorPalette', fg);
+        this.markActiveSwatch('#fillColorPalette', fill);
+    }
+
+    markActiveSwatch(paletteSelector, color) {
+        document.querySelectorAll(`${paletteSelector} .color-btn`).forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.color === color);
+        });
+    }
+
+    onLineWidthChange() {
+        const ann = this.selectedAnnotation;
+        if (!ann || ann.type === 'text') return;
+        this.pushUndoState();
+        ann.lineWidth = parseInt(document.getElementById('lineWidthInput').value) || 1;
+        this.drawImage();
     }
     
     moveAnnotation(x, y) {
@@ -1159,7 +1219,7 @@ class ImageEditor {
         if (index > -1) {
             this.annotations.splice(index, 1);
             this.selectedAnnotation = null;
-            this.updateSelectionButtons();
+            this.refreshControls();
             this.drawImage();
         }
     }
@@ -1191,7 +1251,7 @@ class ImageEditor {
         
         this.annotations = [];
         this.selectedAnnotation = null;
-        this.updateSelectionButtons();
+        this.refreshControls();
         this.loadImage(this.originalImageData);
         this.resetSelection();
     }
@@ -1296,7 +1356,7 @@ class ImageEditor {
         // Initialize current colors
         this.currentTextColor = '#ff0000';
         this.currentStrokeColor = '#ff0000';
-        this.currentFillColor = '#ffffff';
+        this.currentFillColor = 'transparent';
 
         // Main color palette (text + stroke unified)
         document.querySelectorAll('#mainColorPalette .color-btn').forEach(btn => {
@@ -1325,12 +1385,6 @@ class ImageEditor {
                 document.querySelectorAll('#fillColorPalette .color-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.currentFillColor = btn.dataset.color;
-                const fillCheck = document.getElementById('fillShapeInput');
-                if (btn.dataset.color === 'transparent') {
-                    fillCheck.checked = false;
-                } else {
-                    fillCheck.checked = true;
-                }
 
                 // Apply to selected annotation (shapes only)
                 if (this.selectedAnnotation && this.selectedAnnotation.type !== 'text') {
